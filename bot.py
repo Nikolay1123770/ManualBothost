@@ -2,26 +2,23 @@ from flask import Flask, request, render_template_string, session, redirect, url
 import requests
 import hashlib
 import hmac
-from datetime import datetime
 import os
 
 app = Flask(__name__)
-app.secret_key = 'your-secret-key-change-this-in-production'
+app.secret_key = os.urandom(24)
 
-# Конфигурация бота
+# Конфигурация
 BOT_TOKEN = '8511483464:AAHGBEfL44OggKHyf68ZcSx3PzpjpBbDxF0'
 BOT_USERNAME = 'wixyez_auth_bot'
-WEBHOOK_URL = ''  # Заполнится автоматически после деплоя
 
-# HTML шаблон сайта
+# HTML шаблон
 HTML_TEMPLATE = '''
 <!DOCTYPE html>
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Telegram Bot Мануалы | @wixyez_auth_bot</title>
-    <script src="https://telegram.org/js/telegram-widget.js?22"></script>
+    <title>🤖 Telegram Bot Мануалы | BotHost Guide</title>
     <style>
         * {
             margin: 0;
@@ -30,14 +27,14 @@ HTML_TEMPLATE = '''
         }
         
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
             padding: 20px;
         }
         
         .container {
-            max-width: 1200px;
+            max-width: 1400px;
             margin: 0 auto;
         }
         
@@ -56,20 +53,20 @@ HTML_TEMPLATE = '''
         
         .header p {
             font-size: 1.2em;
-            opacity: 0.9;
+            opacity: 0.95;
         }
         
-        .auth-section {
+        .auth-box {
             background: white;
-            padding: 30px;
+            padding: 40px;
             border-radius: 20px;
             box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-            margin-bottom: 30px;
             text-align: center;
             animation: fadeIn 1s ease;
+            margin-bottom: 30px;
         }
         
-        .user-info {
+        .user-card {
             display: flex;
             align-items: center;
             justify-content: center;
@@ -77,35 +74,38 @@ HTML_TEMPLATE = '''
             margin-bottom: 20px;
         }
         
-        .user-info img {
+        .user-card img {
             border-radius: 50%;
             border: 3px solid #667eea;
         }
         
-        .user-info h2 {
+        .user-card h2 {
             color: #333;
+            font-size: 1.8em;
         }
         
         .logout-btn {
-            background: #e74c3c;
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
             color: white;
             border: none;
-            padding: 10px 30px;
-            border-radius: 25px;
+            padding: 12px 40px;
+            border-radius: 30px;
             cursor: pointer;
             font-size: 16px;
+            font-weight: 600;
             transition: all 0.3s;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
         }
         
         .logout-btn:hover {
-            background: #c0392b;
-            transform: scale(1.05);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.3);
         }
         
-        .content-grid {
+        .grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
-            gap: 30px;
+            grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
+            gap: 25px;
             margin-top: 30px;
         }
         
@@ -119,8 +119,8 @@ HTML_TEMPLATE = '''
         }
         
         .card:hover {
-            transform: translateY(-10px);
-            box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+            transform: translateY(-5px);
+            box-shadow: 0 15px 40px rgba(0,0,0,0.3);
         }
         
         .card h2 {
@@ -132,59 +132,81 @@ HTML_TEMPLATE = '''
             gap: 10px;
         }
         
-        .card-icon {
-            font-size: 1.5em;
-        }
-        
         .card h3 {
             color: #764ba2;
-            margin-top: 25px;
-            margin-bottom: 15px;
+            margin: 25px 0 15px;
             font-size: 1.3em;
         }
         
-        .code-block {
-            background: #2d2d2d;
-            color: #f8f8f2;
+        .code {
+            background: #1e1e1e;
+            color: #d4d4d4;
             padding: 20px;
             border-radius: 10px;
             overflow-x: auto;
             margin: 15px 0;
             font-family: 'Courier New', monospace;
-            font-size: 14px;
+            font-size: 13px;
             line-height: 1.6;
         }
         
-        .code-block code {
-            color: #a6e22e;
-        }
+        .code .keyword { color: #569cd6; }
+        .code .string { color: #ce9178; }
+        .code .function { color: #dcdcaa; }
+        .code .comment { color: #6a9955; }
         
         .step {
-            background: #f8f9fa;
-            padding: 15px;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            padding: 20px;
             margin: 15px 0;
-            border-left: 4px solid #667eea;
-            border-radius: 5px;
-        }
-        
-        .step strong {
-            color: #667eea;
+            border-left: 5px solid #667eea;
+            border-radius: 8px;
         }
         
         .warning {
             background: #fff3cd;
-            border-left: 4px solid #ffc107;
-            padding: 15px;
+            border-left: 5px solid #ffc107;
+            padding: 20px;
             margin: 15px 0;
-            border-radius: 5px;
+            border-radius: 8px;
         }
         
         .success {
             background: #d4edda;
-            border-left: 4px solid #28a745;
-            padding: 15px;
+            border-left: 5px solid #28a745;
+            padding: 20px;
             margin: 15px 0;
-            border-radius: 5px;
+            border-radius: 8px;
+        }
+        
+        .info {
+            background: #d1ecf1;
+            border-left: 5px solid #17a2b8;
+            padding: 20px;
+            margin: 15px 0;
+            border-radius: 8px;
+        }
+        
+        ul {
+            margin-left: 20px;
+            margin-top: 10px;
+        }
+        
+        li {
+            margin: 10px 0;
+            line-height: 1.8;
+        }
+        
+        a {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+        
+        a:hover {
+            color: #764ba2;
+            text-decoration: underline;
         }
         
         @keyframes fadeIn {
@@ -214,34 +236,9 @@ HTML_TEMPLATE = '''
             }
         }
         
-        ul {
-            margin-left: 20px;
-            margin-top: 10px;
-        }
-        
-        li {
-            margin: 8px 0;
-            line-height: 1.6;
-        }
-        
-        a {
-            color: #667eea;
-            text-decoration: none;
-            font-weight: bold;
-        }
-        
-        a:hover {
-            text-decoration: underline;
-        }
-        
         @media (max-width: 768px) {
-            .header h1 {
-                font-size: 2em;
-            }
-            
-            .content-grid {
-                grid-template-columns: 1fr;
-            }
+            .header h1 { font-size: 2em; }
+            .grid { grid-template-columns: 1fr; }
         }
     </style>
 </head>
@@ -249,205 +246,174 @@ HTML_TEMPLATE = '''
     <div class="container">
         <div class="header">
             <h1>🤖 Telegram Bot Мануалы</h1>
-            <p>Полное руководство по созданию и деплою ботов</p>
+            <p>Полное руководство по созданию и деплою на BotHost.ru</p>
         </div>
         
         {% if user %}
-        <div class="auth-section">
-            <div class="user-info">
+        <div class="auth-box">
+            <div class="user-card">
                 {% if user.photo_url %}
-                <img src="{{ user.photo_url }}" width="60" height="60" alt="Avatar">
+                <img src="{{ user.photo_url }}" width="70" height="70" alt="Avatar">
                 {% endif %}
-                <h2>👋 Привет, {{ user.first_name }}!</h2>
+                <div>
+                    <h2>👋 Привет, {{ user.first_name }}!</h2>
+                    <p style="color: #666;">@{{ user.username or 'пользователь' }}</p>
+                </div>
             </div>
-            <p style="color: #666; margin-bottom: 15px;">Вы авторизованы как @{{ user.username or 'пользователь' }}</p>
             <form action="/logout" method="post">
-                <button type="submit" class="logout-btn">Выйти</button>
+                <button type="submit" class="logout-btn">🚪 Выйти</button>
             </form>
         </div>
         
-        <div class="content-grid">
-            <!-- Карточка 1: Простой бот -->
+        <div class="grid">
+            <!-- Карточка 1: Простой бот (Polling) -->
             <div class="card">
-                <h2><span class="card-icon">🚀</span> Простой Telegram бот</h2>
-                <p>Создайте своего первого бота за 5 минут!</p>
+                <h2>🚀 Простой бот на Polling</h2>
+                <p>Идеально подходит для начинающих и небольших проектов</p>
                 
-                <h3>Шаг 1: Создание бота</h3>
+                <h3>📝 Шаг 1: Создание бота</h3>
                 <div class="step">
-                    <strong>1.</strong> Найдите <a href="https://t.me/BotFather" target="_blank">@BotFather</a> в Telegram<br>
-                    <strong>2.</strong> Отправьте команду <code>/newbot</code><br>
-                    <strong>3.</strong> Придумайте имя и username для бота<br>
-                    <strong>4.</strong> Сохраните полученный токен
+                    <strong>1.</strong> Найдите <a href="https://t.me/BotFather">@BotFather</a><br>
+                    <strong>2.</strong> Команда: <code>/newbot</code><br>
+                    <strong>3.</strong> Придумайте имя и username<br>
+                    <strong>4.</strong> Скопируйте токен
                 </div>
                 
-                <h3>Шаг 2: Код бота (bot.py)</h3>
-                <div class="code-block">
-<code>from aiogram import Bot, Dispatcher, types
-from aiogram.filters import Command
-import asyncio
+                <h3>💻 Шаг 2: Код (bot.py)</h3>
+                <div class="code">
+<span class="keyword">from</span> aiogram <span class="keyword">import</span> Bot, Dispatcher, types
+<span class="keyword">from</span> aiogram.filters <span class="keyword">import</span> Command
+<span class="keyword">import</span> asyncio
 
-BOT_TOKEN = "YOUR_TOKEN_HERE"
-
+BOT_TOKEN = <span class="string">"ВАШ_ТОКЕН"</span>
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
 
-@dp.message(Command("start"))
-async def cmd_start(message: types.Message):
-    await message.answer(
-        f"👋 Привет, {message.from_user.first_name}!\n"
-        "Я твой новый бот!"
+<span class="comment"># Команда /start</span>
+@dp.message(Command(<span class="string">"start"</span>))
+<span class="keyword">async def</span> <span class="function">cmd_start</span>(message: types.Message):
+    <span class="keyword">await</span> message.answer(
+        <span class="string">f"👋 Привет, {message.from_user.first_name}!\n"</span>
+        <span class="string">"Я работаю на BotHost!"</span>
     )
 
-@dp.message(Command("help"))
-async def cmd_help(message: types.Message):
-    await message.answer(
-        "📋 Доступные команды:\n"
-        "/start - Начать работу\n"
-        "/help - Помощь"
-    )
-
+<span class="comment"># Эхо</span>
 @dp.message()
-async def echo(message: types.Message):
-    await message.answer(f"Вы написали: {message.text}")
+<span class="keyword">async def</span> <span class="function">echo</span>(message: types.Message):
+    <span class="keyword">await</span> message.answer(<span class="string">f"Вы: {message.text}"</span>)
 
-async def main():
-    await dp.start_polling(bot)
+<span class="keyword">async def</span> <span class="function">main</span>():
+    <span class="keyword">await</span> dp.start_polling(bot)
 
-if __name__ == "__main__":
-    asyncio.run(main())</code>
+<span class="keyword">if</span> __name__ == <span class="string">"__main__"</span>:
+    asyncio.run(main())
                 </div>
                 
-                <h3>Шаг 3: Установка зависимостей</h3>
-                <div class="code-block">
-pip install aiogram
-                </div>
-                
-                <h3>Шаг 4: Запуск</h3>
-                <div class="code-block">
-python bot.py
+                <h3>📦 requirements.txt</h3>
+                <div class="code">
+aiogram==3.3.0
+aiohttp==3.9.1
                 </div>
                 
                 <div class="success">
-                    ✅ Готово! Бот запущен и отвечает на сообщения
+                    ✅ <strong>Готово!</strong> Простой и надежный вариант
                 </div>
             </div>
             
-            <!-- Карточка 2: Бот на вебхуке -->
+            <!-- Карточка 2: Бот на Webhook -->
             <div class="card">
-                <h2><span class="card-icon">⚡</span> Бот на Webhook</h2>
-                <p>Продвинутый способ для продакшена</p>
+                <h2>⚡ Бот на Webhook</h2>
+                <p>Для продакшена и высоких нагрузок</p>
                 
-                <h3>Код бота с webhook (app.py)</h3>
-                <div class="code-block">
-<code>from flask import Flask, request
-import requests
+                <h3>💻 Код (app.py)</h3>
+                <div class="code">
+<span class="keyword">from</span> flask <span class="keyword">import</span> Flask, request
+<span class="keyword">import</span> requests
 
 app = Flask(__name__)
 
-BOT_TOKEN = "YOUR_TOKEN_HERE"
-WEBHOOK_URL = "https://your-domain.com/webhook"
+BOT_TOKEN = <span class="string">"ВАШ_ТОКЕН"</span>
+API_URL = <span class="string">f"https://api.telegram.org/bot{BOT_TOKEN}"</span>
 
-def send_message(chat_id, text):
-    url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
-    data = {"chat_id": chat_id, "text": text}
-    requests.post(url, json=data)
+<span class="keyword">def</span> <span class="function">send_message</span>(chat_id, text):
+    url = <span class="string">f"{API_URL}/sendMessage"</span>
+    requests.post(url, json={
+        <span class="string">"chat_id"</span>: chat_id,
+        <span class="string">"text"</span>: text
+    })
 
-@app.route('/webhook', methods=['POST'])
-def webhook():
+@app.route(<span class="string">f'/{BOT_TOKEN}'</span>, methods=[<span class="string">'POST'</span>])
+<span class="keyword">def</span> <span class="function">webhook</span>():
     update = request.get_json()
     
-    if 'message' in update:
-        chat_id = update['message']['chat']['id']
-        text = update['message'].get('text', '')
+    <span class="keyword">if</span> <span class="string">'message'</span> <span class="keyword">in</span> update:
+        chat_id = update[<span class="string">'message'</span>][<span class="string">'chat'</span>][<span class="string">'id'</span>]
+        text = update[<span class="string">'message'</span>].get(<span class="string">'text'</span>, <span class="string">''</span>)
         
-        if text == '/start':
-            send_message(chat_id, "👋 Привет! Бот на webhook работает!")
-        else:
-            send_message(chat_id, f"Эхо: {text}")
+        <span class="keyword">if</span> text == <span class="string">'/start'</span>:
+            send_message(chat_id, <span class="string">"👋 Webhook бот запущен!"</span>)
+        <span class="keyword">else</span>:
+            send_message(chat_id, <span class="string">f"Эхо: {text}"</span>)
     
-    return 'OK'
+    <span class="keyword">return</span> <span class="string">'OK'</span>
 
-@app.route('/set_webhook')
-def set_webhook():
-    url = f"https://api.telegram.org/bot{BOT_TOKEN}/setWebhook"
-    data = {"url": WEBHOOK_URL}
-    r = requests.post(url, json=data)
-    return r.json()
+@app.route(<span class="string">'/set_webhook'</span>)
+<span class="keyword">def</span> <span class="function">set_webhook</span>():
+    webhook_url = request.url_root + BOT_TOKEN
+    url = <span class="string">f"{API_URL}/setWebhook"</span>
+    r = requests.post(url, json={<span class="string">"url"</span>: webhook_url})
+    <span class="keyword">return</span> r.json()
 
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000)</code>
+<span class="keyword">if</span> __name__ == <span class="string">'__main__'</span>:
+    app.run(host=<span class="string">'0.0.0.0'</span>, port=5000)
                 </div>
                 
-                <h3>requirements.txt</h3>
-                <div class="code-block">
+                <h3>📦 requirements.txt</h3>
+                <div class="code">
 Flask==3.0.0
 requests==2.31.0
 gunicorn==21.2.0
                 </div>
                 
                 <div class="warning">
-                    ⚠️ После деплоя обязательно откройте /set_webhook для активации вебхука
+                    ⚠️ После деплоя откройте: <code>https://ваш-домен.bothost.ru/set_webhook</code>
                 </div>
             </div>
             
             <!-- Карточка 3: Mini App -->
             <div class="card">
-                <h2><span class="card-icon">📱</span> Telegram Mini App</h2>
-                <p>Создайте веб-приложение внутри Telegram</p>
+                <h2>📱 Telegram Mini App</h2>
+                <p>Веб-приложение внутри Telegram</p>
                 
-                <h3>Структура проекта</h3>
-                <div class="code-block">
-project/
-  ├── bot.py          # Бот
-  ├── app.py          # Flask сервер
-  ├── templates/
-  │   └── miniapp.html
-  └── requirements.txt
-                </div>
-                
-                <h3>bot.py - Бот с кнопкой Mini App</h3>
-                <div class="code-block">
-<code>from aiogram import Bot, Dispatcher, types
-from aiogram.filters import Command
-from aiogram.types import WebAppInfo, InlineKeyboardMarkup, InlineKeyboardButton
+                <h3>🤖 bot.py (с кнопкой Mini App)</h3>
+                <div class="code">
+<span class="keyword">from</span> aiogram <span class="keyword">import</span> Bot, Dispatcher, types
+<span class="keyword">from</span> aiogram.filters <span class="keyword">import</span> Command
+<span class="keyword">from</span> aiogram.types <span class="keyword">import</span> WebAppInfo, InlineKeyboardMarkup, InlineKeyboardButton
 
-BOT_TOKEN = "YOUR_TOKEN"
-WEBAPP_URL = "https://your-domain.com/miniapp"
+BOT_TOKEN = <span class="string">"ВАШ_ТОКЕН"</span>
+WEBAPP_URL = <span class="string">"https://ваш-домен.bothost.ru/miniapp"</span>
 
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
 
-@dp.message(Command("start"))
-async def cmd_start(message: types.Message):
-    keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(
-            text="🚀 Открыть Mini App",
+@dp.message(Command(<span class="string">"start"</span>))
+<span class="keyword">async def</span> <span class="function">start</span>(message: types.Message):
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[[
+        InlineKeyboardButton(
+            text=<span class="string">"🚀 Открыть Mini App"</span>,
             web_app=WebAppInfo(url=WEBAPP_URL)
-        )]
-    ])
-    await message.answer(
-        "👋 Нажми на кнопку ниже:",
+        )
+    ]])
+    <span class="keyword">await</span> message.answer(
+        <span class="string">"👇 Нажмите кнопку:"</span>,
         reply_markup=keyboard
-    )</code>
+    )
                 </div>
                 
-                <h3>app.py - Flask сервер</h3>
-                <div class="code-block">
-<code>from flask import Flask, render_template
-
-app = Flask(__name__)
-
-@app.route('/miniapp')
-def miniapp():
-    return render_template('miniapp.html')
-
-if __name__ == '__main__':
-    app.run()</code>
-                </div>
-                
-                <h3>templates/miniapp.html</h3>
-                <div class="code-block">
-<code>&lt;!DOCTYPE html&gt;
+                <h3>🌐 templates/miniapp.html</h3>
+                <div class="code">
+&lt;!DOCTYPE html&gt;
 &lt;html&gt;
 &lt;head&gt;
     &lt;meta charset="UTF-8"&gt;
@@ -460,226 +426,210 @@ if __name__ == '__main__':
             background: var(--tg-theme-bg-color);
             color: var(--tg-theme-text-color);
         }
+        button {
+            background: var(--tg-theme-button-color);
+            color: var(--tg-theme-button-text-color);
+            border: none;
+            padding: 15px 30px;
+            border-radius: 10px;
+            font-size: 16px;
+        }
     &lt;/style&gt;
 &lt;/head&gt;
 &lt;body&gt;
-    &lt;h1&gt;🎉 Telegram Mini App&lt;/h1&gt;
-    &lt;p id="user-info"&gt;&lt;/p&gt;
-    &lt;button onclick="sendData()"&gt;Отправить данные боту&lt;/button&gt;
+    &lt;h1&gt;🎉 Mini App&lt;/h1&gt;
+    &lt;p id="user"&gt;&lt;/p&gt;
+    &lt;button onclick="sendData()"&gt;Отправить&lt;/button&gt;
     
     &lt;script&gt;
         let tg = window.Telegram.WebApp;
         tg.expand();
         
-        document.getElementById('user-info').innerHTML = 
+        document.getElementById('user').innerHTML = 
             `Привет, ${tg.initDataUnsafe.user.first_name}!`;
         
         function sendData() {
-            tg.sendData(JSON.stringify({action: 'button_clicked'}));
+            tg.sendData(JSON.stringify({action: 'click'}));
             tg.close();
         }
     &lt;/script&gt;
 &lt;/body&gt;
-&lt;/html&gt;</code>
+&lt;/html&gt;
                 </div>
             </div>
             
             <!-- Карточка 4: Деплой на BotHost -->
             <div class="card">
-                <h2><span class="card-icon">🌐</span> Деплой на BotHost.ru</h2>
-                <p>Пошаговая инструкция по загрузке бота</p>
+                <h2>🌐 Деплой на BotHost.ru</h2>
+                <p>Пошаговая инструкция</p>
                 
-                <h3>Шаг 1: Регистрация</h3>
+                <h3>1️⃣ Регистрация</h3>
                 <div class="step">
-                    <strong>1.</strong> Перейдите на <a href="https://bothost.ru" target="_blank">bothost.ru</a><br>
-                    <strong>2.</strong> Зарегистрируйтесь / войдите<br>
-                    <strong>3.</strong> Пополните баланс (от 50₽)
+                    • Перейдите на <a href="https://bothost.ru">bothost.ru</a><br>
+                    • Зарегистрируйтесь или войдите<br>
+                    • Пополните баланс (от 50₽ в месяц)
                 </div>
                 
-                <h3>Шаг 2: Создание проекта</h3>
+                <h3>2️⃣ Создание проекта</h3>
                 <div class="step">
-                    <strong>1.</strong> Нажмите "Создать проект"<br>
-                    <strong>2.</strong> Выберите тип: <strong>Python 3.11</strong><br>
-                    <strong>3.</strong> Укажите название проекта<br>
-                    <strong>4.</strong> Выберите тариф
+                    • Нажмите <strong>"Создать бота"</strong><br>
+                    • Тип: <strong>Python 3.11</strong><br>
+                    • Укажите название<br>
+                    • Выберите тариф
                 </div>
                 
-                <h3>Шаг 3: Подготовка файлов</h3>
-                <div class="code-block">
-# requirements.txt
-aiogram==3.3.0
-aiohttp==3.9.1
+                <h3>3️⃣ Загрузка через Git</h3>
+                <div class="code">
+<span class="comment"># Создайте репозиторий на GitHub</span>
+git init
+git add .
+git commit -m <span class="string">"Initial commit"</span>
+git remote add origin https://github.com/ВАШ_ЛОГИН/ВАШ_РЕПО.git
+git push -u origin master
 
-# Для Flask проектов добавьте:
-Flask==3.0.0
-gunicorn==21.2.0
+<span class="comment"># В BotHost укажите ссылку на репозиторий</span>
                 </div>
                 
-                <h3>Шаг 4: Загрузка</h3>
-                <div class="step">
-                    <strong>Через Git:</strong><br>
-                    <code>git push bothost master</code><br><br>
+                <h3>4️⃣ Настройка запуска</h3>
+                <div class="info">
+                    <strong>Для Polling бота:</strong><br>
+                    Команда: <code>python bot.py</code><br><br>
                     
-                    <strong>Через файловый менеджер:</strong><br>
-                    - Откройте раздел "Файлы"<br>
-                    - Загрузите bot.py и requirements.txt<br>
-                    - Нажмите "Установить зависимости"
+                    <strong>Для Webhook бота:</strong><br>
+                    1. Включите "Веб-сервер" в настройках<br>
+                    2. Команда: <code>gunicorn app:app --bind 0.0.0.0:5000</code><br>
+                    3. После запуска откройте: <code>/set_webhook</code>
                 </div>
                 
-                <h3>Шаг 5: Настройка для Webhook</h3>
-                <div class="step">
-                    <strong>1.</strong> В настройках проекта включите "Веб-сервер"<br>
-                    <strong>2.</strong> Скопируйте URL вашего проекта<br>
-                    <strong>3.</strong> Замените в коде WEBHOOK_URL<br>
-                    <strong>4.</strong> Откройте https://ваш-домен.com/set_webhook
-                </div>
-                
-                <h3>Шаг 6: Запуск</h3>
-                <div class="step">
-                    <strong>Для polling бота:</strong><br>
-                    Команда запуска: <code>python bot.py</code><br><br>
-                    
-                    <strong>Для webhook бота:</strong><br>
-                    Команда запуска: <code>gunicorn app:app --bind 0.0.0.0:5000</code>
-                </div>
-                
-                <div class="success">
-                    ✅ Бот развёрнут! Проверьте работу в Telegram
-                </div>
-                
-                <h3>Полезные команды</h3>
-                <div class="code-block">
-# Просмотр логов
-tail -f logs/app.log
+                <h3>5️⃣ Полезные команды</h3>
+                <div class="code">
+<span class="comment"># Просмотр логов</span>
+tail -f logs/bot.log
 
-# Перезапуск бота
+<span class="comment"># Перезапуск</span>
 supervisorctl restart all
 
-# Проверка процессов
+<span class="comment"># Статус</span>
 supervisorctl status
                 </div>
                 
+                <div class="success">
+                    ✅ <strong>Бот запущен!</strong> Проверьте в Telegram
+                </div>
+                
                 <div class="warning">
-                    <strong>⚠️ Важно:</strong>
-                    <ul>
-                        <li>Не используйте polling и webhook одновременно</li>
-                        <li>Храните токены в переменных окружения</li>
-                        <li>Регулярно проверяйте логи</li>
-                        <li>Для webhook нужен SSL (есть на BotHost)</li>
-                    </ul>
+                    <strong>⚠️ Важно:</strong><br>
+                    • Не используйте polling и webhook вместе<br>
+                    • Храните токены в переменных окружения<br>
+                    • Проверяйте логи регулярно
                 </div>
             </div>
             
-            <!-- Карточка 5: Дополнительные возможности -->
+            <!-- Карточка 5: Продвинутые фишки -->
             <div class="card">
-                <h2><span class="card-icon">⭐</span> Продвинутые фишки</h2>
+                <h2>⭐ Продвинутые возможности</h2>
                 
-                <h3>🔐 Использование переменных окружения</h3>
-                <div class="code-block">
-<code>import os
+                <h3>🔐 Переменные окружения</h3>
+                <div class="code">
+<span class="keyword">import</span> os
 
-BOT_TOKEN = os.getenv('BOT_TOKEN', 'default_token')
-DATABASE_URL = os.getenv('DATABASE_URL')</code>
+BOT_TOKEN = os.getenv(<span class="string">'BOT_TOKEN'</span>, <span class="string">'default'</span>)
+DATABASE_URL = os.getenv(<span class="string">'DATABASE_URL'</span>)
                 </div>
                 
-                <h3>💾 Подключение базы данных SQLite</h3>
-                <div class="code-block">
-<code>import sqlite3
+                <h3>💾 База данных SQLite</h3>
+                <div class="code">
+<span class="keyword">import</span> sqlite3
 
-conn = sqlite3.connect('bot.db')
+conn = sqlite3.connect(<span class="string">'bot.db'</span>)
 cursor = conn.cursor()
 
-cursor.execute('''
+<span class="comment"># Создание таблицы</span>
+cursor.execute(<span class="string">'''
     CREATE TABLE IF NOT EXISTS users (
         user_id INTEGER PRIMARY KEY,
         username TEXT,
         first_name TEXT
     )
-''')
+'''</span>)
 
-# Добавление пользователя
+<span class="comment"># Добавление пользователя</span>
 cursor.execute(
-    'INSERT OR IGNORE INTO users VALUES (?, ?, ?)',
+    <span class="string">'INSERT OR IGNORE INTO users VALUES (?, ?, ?)'</span>,
     (user_id, username, first_name)
 )
-conn.commit()</code>
+conn.commit()
                 </div>
                 
                 <h3>📊 Inline кнопки</h3>
-                <div class="code-block">
-<code>from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+                <div class="code">
+<span class="keyword">from</span> aiogram.types <span class="keyword">import</span> InlineKeyboardMarkup, InlineKeyboardButton
 
-keyboard = InlineKeyboardMarkup(inline_keyboard=[
-    [InlineKeyboardButton(text="✅ Да", callback_data="yes")],
-    [InlineKeyboardButton(text="❌ Нет", callback_data="no")]
+kb = InlineKeyboardMarkup(inline_keyboard=[
+    [InlineKeyboardButton(text=<span class="string">"✅ Да"</span>, callback_data=<span class="string">"yes"</span>)],
+    [InlineKeyboardButton(text=<span class="string">"❌ Нет"</span>, callback_data=<span class="string">"no"</span>)]
 ])
 
-await message.answer("Выберите:", reply_markup=keyboard)
+<span class="keyword">await</span> message.answer(<span class="string">"Выберите:"</span>, reply_markup=kb)
 
 @dp.callback_query()
-async def process_callback(callback: types.CallbackQuery):
-    if callback.data == "yes":
-        await callback.message.answer("Вы выбрали ДА!")
-    await callback.answer()</code>
+<span class="keyword">async def</span> <span class="function">process</span>(callback: types.CallbackQuery):
+    <span class="keyword">await</span> callback.message.answer(<span class="string">f"Вы выбрали: {callback.data}"</span>)
+    <span class="keyword">await</span> callback.answer()
                 </div>
                 
-                <h3>🖼️ Отправка фото</h3>
-                <div class="code-block">
-<code>from aiogram.types import FSInputFile
+                <h3>🖼️ Отправка файлов</h3>
+                <div class="code">
+<span class="keyword">from</span> aiogram.types <span class="keyword">import</span> FSInputFile
 
-photo = FSInputFile("photo.jpg")
-await message.answer_photo(
-    photo,
-    caption="📸 Красивое фото!"
-)</code>
-                </div>
-                
-                <h3>⏱️ Отложенные сообщения</h3>
-                <div class="code-block">
-<code>import asyncio
+<span class="comment"># Фото</span>
+photo = FSInputFile(<span class="string">"image.jpg"</span>)
+<span class="keyword">await</span> message.answer_photo(photo, caption=<span class="string">"📸 Фото"</span>)
 
-await message.answer("Сообщение через 5 секунд...")
-await asyncio.sleep(5)
-await message.answer("⏰ Прошло 5 секунд!")</code>
+<span class="comment"># Документ</span>
+doc = FSInputFile(<span class="string">"file.pdf"</span>)
+<span class="keyword">await</span> message.answer_document(doc)
                 </div>
             </div>
             
             <!-- Карточка 6: Полезные ссылки -->
             <div class="card">
-                <h2><span class="card-icon">🔗</span> Полезные ссылки</h2>
+                <h2>🔗 Полезные ресурсы</h2>
                 
                 <h3>📚 Документация</h3>
                 <ul>
-                    <li><a href="https://core.telegram.org/bots/api" target="_blank">Telegram Bot API</a></li>
-                    <li><a href="https://docs.aiogram.dev/" target="_blank">Aiogram 3.x</a></li>
-                    <li><a href="https://flask.palletsprojects.com/" target="_blank">Flask</a></li>
-                    <li><a href="https://core.telegram.org/bots/webapps" target="_blank">Telegram Mini Apps</a></li>
+                    <li><a href="https://core.telegram.org/bots/api">Telegram Bot API</a></li>
+                    <li><a href="https://docs.aiogram.dev/">Aiogram 3.x Docs</a></li>
+                    <li><a href="https://flask.palletsprojects.com/">Flask Documentation</a></li>
+                    <li><a href="https://core.telegram.org/bots/webapps">Telegram Mini Apps API</a></li>
                 </ul>
                 
-                <h3>🛠️ Хостинг для ботов</h3>
+                <h3>🛠️ Хостинг</h3>
                 <ul>
-                    <li><a href="https://bothost.ru" target="_blank">BotHost.ru</a> - Специализированный хостинг</li>
-                    <li><a href="https://heroku.com" target="_blank">Heroku</a> - Бесплатный вариант</li>
-                    <li><a href="https://railway.app" target="_blank">Railway</a> - Простой деплой</li>
-                    <li><a href="https://vercel.com" target="_blank">Vercel</a> - Для веб-приложений</li>
+                    <li><a href="https://bothost.ru">BotHost.ru</a> — Специализированный</li>
+                    <li><a href="https://heroku.com">Heroku</a> — Бесплатный tier</li>
+                    <li><a href="https://railway.app">Railway</a> — Простой деплой</li>
+                    <li><a href="https://render.com">Render</a> — Современный</li>
                 </ul>
                 
-                <h3>💡 Примеры ботов</h3>
+                <h3>💡 Сообщества</h3>
                 <ul>
-                    <li><a href="https://github.com/aiogram/aiogram" target="_blank">Официальные примеры Aiogram</a></li>
-                    <li><a href="https://t.me/botlist" target="_blank">@botlist</a> - Каталог ботов</li>
+                    <li><a href="https://t.me/aiogram_live">@aiogram_live</a> — Чат Aiogram</li>
+                    <li><a href="https://t.me/bothost_ru">@bothost_ru</a> — Поддержка BotHost</li>
                 </ul>
                 
-                <div class="success">
-                    <strong>🎓 Совет:</strong> Начните с простого бота, потом добавляйте функции постепенно!
+                <div class="info">
+                    <strong>💡 Совет:</strong> Начните с простого polling бота, затем переходите на webhook и Mini Apps!
                 </div>
             </div>
         </div>
         
         {% else %}
-        <div class="auth-section">
-            <h2 style="margin-bottom: 20px;">🔐 Войдите через Telegram</h2>
-            <p style="color: #666; margin-bottom: 20px;">Для доступа к мануалам необходима авторизация</p>
+        <div class="auth-box">
+            <h2 style="margin-bottom: 20px; color: #333;">🔐 Авторизация</h2>
+            <p style="color: #666; margin-bottom: 30px; font-size: 1.1em;">
+                Войдите через Telegram для доступа к мануалам
+            </p>
             <script async src="https://telegram.org/js/telegram-widget.js?22" 
                     data-telegram-login="{{ bot_username }}" 
                     data-size="large" 
@@ -693,8 +643,7 @@ await message.answer("⏰ Прошло 5 секунд!")</code>
 </html>
 '''
 
-# Проверка авторизации Telegram
-def check_telegram_authorization(auth_data):
+def check_telegram_auth(auth_data):
     check_hash = auth_data.get('hash')
     auth_data_copy = {k: v for k, v in auth_data.items() if k != 'hash'}
     data_check_string = '\n'.join([f"{k}={v}" for k, v in sorted(auth_data_copy.items())])
@@ -704,37 +653,32 @@ def check_telegram_authorization(auth_data):
     
     return calculated_hash == check_hash
 
-# Главная страница
 @app.route('/')
 def index():
     user = session.get('user')
     return render_template_string(HTML_TEMPLATE, user=user, bot_username=BOT_USERNAME)
 
-# Обработка авторизации
 @app.route('/auth')
 def auth():
     auth_data = request.args.to_dict()
     
-    if check_telegram_authorization(auth_data):
+    if check_telegram_auth(auth_data):
         session['user'] = {
             'id': auth_data.get('id'),
             'first_name': auth_data.get('first_name'),
             'last_name': auth_data.get('last_name'),
             'username': auth_data.get('username'),
-            'photo_url': auth_data.get('photo_url'),
-            'auth_date': auth_data.get('auth_date')
+            'photo_url': auth_data.get('photo_url')
         }
         return redirect(url_for('index'))
     
-    return 'Ошибка авторизации', 403
+    return 'Auth Error', 403
 
-# Выход
 @app.route('/logout', methods=['POST'])
 def logout():
     session.pop('user', None)
     return redirect(url_for('index'))
 
-# Webhook для бота
 @app.route(f'/{BOT_TOKEN}', methods=['POST'])
 def webhook():
     update = request.get_json()
@@ -747,37 +691,32 @@ def webhook():
         if text == '/start':
             send_message(chat_id, 
                 f"👋 Привет, {first_name}!\n\n"
-                f"Я бот для авторизации на сайте с мануалами.\n\n"
-                f"🌐 Перейди на сайт и авторизуйся через кнопку Telegram!"
+                "Я бот для авторизации на сайте.\n\n"
+                "🌐 Перейди на сайт: https://manuals.bothost.ru"
             )
         elif text == '/help':
             send_message(chat_id,
-                "📋 Доступные команды:\n"
-                "/start - Начать работу\n"
-                "/help - Помощь\n\n"
-                "Используй меня для авторизации на сайте!"
+                "📋 Команды:\n"
+                "/start — Начать\n"
+                "/help — Помощь\n\n"
+                "Используй меня для входа на сайт!"
             )
         else:
             send_message(chat_id, f"Вы написали: {text}")
     
     return 'OK', 200
 
-# Отправка сообщения
 def send_message(chat_id, text):
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
-    data = {"chat_id": chat_id, "text": text, "parse_mode": "HTML"}
-    requests.post(url, json=data)
+    requests.post(url, json={"chat_id": chat_id, "text": text})
 
-# Установка webhook
 @app.route('/set_webhook')
 def set_webhook():
-    webhook_url = request.url_root + BOT_TOKEN
+    webhook_url = request.url_root.rstrip('/') + '/' + BOT_TOKEN
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/setWebhook"
-    data = {"url": webhook_url}
-    response = requests.post(url, json=data)
+    response = requests.post(url, json={"url": webhook_url})
     return response.json()
 
-# Информация о webhook
 @app.route('/webhook_info')
 def webhook_info():
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/getWebhookInfo"
@@ -785,4 +724,4 @@ def webhook_info():
     return response.json()
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    app.run(host='0.0.0.0', port=5000)
